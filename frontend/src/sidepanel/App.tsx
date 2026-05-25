@@ -7,6 +7,7 @@ import {
   loadSession,
   saveSession,
 } from "../lib/session";
+import ReactMarkdown from "react-markdown";
 
 const QUICK_ACTIONS = [
   {
@@ -148,7 +149,7 @@ export default function App() {
                 : "mr-auto bg-yt-surface border border-yt-border"
             }`}
           >
-            <p className="whitespace-pre-wrap">{m.content}</p>
+            <ReactMarkdown>{m.content}</ReactMarkdown>
           </div>
         ))}
 
