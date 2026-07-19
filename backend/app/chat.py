@@ -47,7 +47,6 @@ class ChatService:
                     messages=messages,
                     temperature=0.3,
                     max_tokens=1024,
-                    reasoning_format="hidden",
                 )
                 content = completion.choices[0].message.content
                 if content:
