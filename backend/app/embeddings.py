@@ -1,53 +1,50 @@
-from huggingface_hub import InferenceClient
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from app.config import settings
 
 
 class EmbeddingClient:
-    """Hugging Face Inference API feature-extraction for BGE-M3."""
+    """Gemini Embedding 2 via LangChain Google GenAI integration."""
 
     def __init__(self) -> None:
-        self.model = settings.hf_embedding_model
-        self._client: InferenceClient | None = None
-        if settings.huggingface_api_key:
-            self._client = InferenceClient(token=settings.huggingface_api_key)
+        self.model = settings.google_embedding_model
+        self._doc_embedder: GoogleGenerativeAIEmbeddings | None = None
+        self._query_embedder: GoogleGenerativeAIEmbeddings | None = None
+        if settings.google_api_key:
+            common_kwargs = {
+                "model": self.model,
+                "google_api_key": settings.google_api_key,
+            }
+            self._doc_embedder = GoogleGenerativeAIEmbeddings(
+                **common_kwargs,
+                task_type="RETRIEVAL_DOCUMENT",
+            )
+            self._query_embedder = GoogleGenerativeAIEmbeddings(
+                **common_kwargs,
+                task_type="RETRIEVAL_QUERY",
+            )
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        if not self._client:
-            raise RuntimeError("Hugging Face API key is not configured.")
+        if not self._doc_embedder:
+            raise RuntimeError("Embedding service is not configured.")
 
         try:
-            result = self._client.feature_extraction(texts, model=self.model)
+            return self._doc_embedder.embed_documents(texts)
         except Exception as e:
             raise RuntimeError(
                 "Embedding service failed. Please try again later."
             ) from e
 
-        vectors = self._to_vectors(result, len(texts))
-        return vectors
-
     def embed_query(self, query: str) -> list[float]:
-        return self.embed_texts([query])[0]
+        if not self._query_embedder:
+            raise RuntimeError("Embedding service is not configured.")
 
-    @staticmethod
-    def _to_vectors(result: object, expected: int) -> list[list[float]]:
-        """Convert numpy array or list responses into list[list[float]]."""
-        if hasattr(result, "tolist"):
-            arr = result.tolist()
-        elif isinstance(result, list):
-            arr = result
-        else:
-            raise RuntimeError("Invalid embedding response.")
-
-        if expected == 1:
-            if isinstance(arr[0], (int, float)):
-                return [arr]  # type: ignore[list-item]
-            return [arr[0]]  # type: ignore[index]
-
-        if isinstance(arr[0], (int, float)):
-            return [arr]  # type: ignore[list-item]
-
-        return arr  # type: ignore[return-value]
+        try:
+            return self._query_embedder.embed_query(query)
+        except Exception as e:
+            raise RuntimeError(
+                "Embedding service failed. Please try again later."
+            ) from e
 
 
 embedding_client = EmbeddingClient()

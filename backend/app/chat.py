@@ -1,14 +1,51 @@
-from groq import Groq
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.config import settings
 from app.prompts import build_system_prompt, build_user_prompt
 
 
+def _extract_text(response: object) -> str:
+    if hasattr(response, "text"):
+        text = getattr(response, "text")
+        if isinstance(text, str) and text.strip():
+            return text.strip()
+    content = getattr(response, "content", None)
+    if isinstance(content, str):
+        return content.strip()
+    if isinstance(content, list):
+        parts: list[str] = []
+        for block in content:
+            if isinstance(block, dict):
+                txt = block.get("text") or block.get("content")
+                if isinstance(txt, str):
+                    parts.append(txt)
+            elif isinstance(block, str):
+                parts.append(block)
+        return "".join(parts).strip()
+    return str(content).strip() if content is not None else ""
+
+
 class ChatService:
     def __init__(self) -> None:
-        self._client: Groq | None = None
-        if settings.groq_api_key:
-            self._client = Groq(api_key=settings.groq_api_key)
+        self._primary: ChatGoogleGenerativeAI | None = None
+        self._fallback: ChatGoogleGenerativeAI | None = None
+        if settings.google_api_key:
+            common_kwargs = {
+                "google_api_key": settings.google_api_key,
+                "max_retries": 1,
+            }
+            self._primary = ChatGoogleGenerativeAI(
+                model=settings.google_chat_model,
+                temperature=0.3,
+                max_tokens=1024,
+                **common_kwargs,
+            )
+            self._fallback = ChatGoogleGenerativeAI(
+                model=settings.google_chat_model_fallback,
+                temperature=0.3,
+                max_tokens=1024,
+                **common_kwargs,
+            )
 
     def generate(
         self,
@@ -20,7 +57,7 @@ class ChatService:
         retrieved_chunks: list[dict],
         user_question: str,
     ) -> str:
-        if not self._client:
+        if not self._primary or not self._fallback:
             raise RuntimeError("The answer service is temporarily unavailable.")
 
         user_prompt = build_user_prompt(
@@ -33,24 +70,19 @@ class ChatService:
         )
 
         messages = [
-            {"role": "system", "content": build_system_prompt()},
-            {"role": "user", "content": user_prompt},
+            ("system", build_system_prompt()),
+            ("human", user_prompt),
         ]
 
-        models = [settings.groq_chat_model, settings.groq_chat_model_fallback]
+        models = [self._primary, self._fallback]
         last_error: Exception | None = None
 
         for model in models:
             try:
-                completion = self._client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=0.3,
-                    max_tokens=1024,
-                )
-                content = completion.choices[0].message.content
+                response = model.invoke(messages)
+                content = _extract_text(response)
                 if content:
-                    return content.strip()
+                    return content
             except Exception as e:
                 last_error = e
                 continue

@@ -4,12 +4,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    groq_api_key: str = ""
-    huggingface_api_key: str = ""
+    google_api_key: str = ""
 
-    groq_chat_model: str = "qwen/qwen3-32b"
-    groq_chat_model_fallback: str = "llama-3.1-8b-instant"
-    hf_embedding_model: str = "BAAI/bge-m3"
+    google_chat_model: str = "gemini-3.1-flash-lite"
+    google_chat_model_fallback: str = "gemini-3.5-flash"
+    google_embedding_model: str = "gemini-embedding-2"
 
     retrieval_top_k: int = 5
     chunk_size: int = 800

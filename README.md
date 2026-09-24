@@ -1,28 +1,27 @@
 # YT Notes
 
-A Chrome extension that opens a side-panel chat to **summarize YouTube videos** and answer follow-up questions in **any language**. AI runs on a local FastAPI backend (RAG over transcripts with Groq + Hugging Face embeddings + ChromaDB).
+A Chrome extension that opens a side-panel chat to **summarize YouTube videos** and answer follow-up questions in **any language**. AI runs on a local FastAPI backend (RAG over transcripts with Google Gemini chat + embeddings + ChromaDB).
 
 ## Architecture
 
 
-| Layer    | Stack                                                                                    |
-| -------- | ---------------------------------------------------------------------------------------- |
-| Frontend | Chrome MV3, React, Tailwind, Side Panel API                                              |
-| Backend  | FastAPI, LangChain text splitters, ChromaDB, Groq (`qwen/qwen3-32b`), HF (`BAAI/bge-m3`) |
+| Layer    | Stack                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------ |
+| Frontend | Chrome MV3, React, Tailwind, Side Panel API                                                                 |
+| Backend  | FastAPI, LangChain text splitters, ChromaDB, Gemini 3.1 Flash Lite chat, Gemini Embedding 2                 |
 
 
 ```
 User → Side panel → POST /api/chat → Transcript → Chunk → Embed → ChromaDB
                                               ↓
-                                    Retrieve top-k → Groq → Answer
+                                    Retrieve top-k → Gemini → Answer
 ```
 
 ## Prerequisites
 
 - Node.js 18+
 - Python 3.11+
-- [Groq API key](https://console.groq.com/)
-- [Hugging Face token](https://huggingface.co/settings/tokens) with Inference API access
+- [Google AI (Gemini) API key](https://aistudio.google.com/app/apikey)
 
 ## Backend setup
 
@@ -36,7 +35,7 @@ source .venv/bin/activate
 
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with GROQ_API_KEY and HUGGINGFACE_API_KEY
+# Edit .env with GOOGLE_API_KEY
 
 uvicorn app.main:app --reload --host 127.0.0.1 --port 3000
 ```
@@ -68,8 +67,8 @@ Load in Chrome:
 
 See `backend/.env.example` for:
 
-- Chat model and fallback (`GROQ_CHAT_MODEL`, `GROQ_CHAT_MODEL_FALLBACK`)
-- Embedding model (`HF_EMBEDDING_MODEL`)
+- Chat model and fallback (`GOOGLE_CHAT_MODEL`, `GOOGLE_CHAT_MODEL_FALLBACK`)
+- Embedding model (`GOOGLE_EMBEDDING_MODEL`)
 - Chunk size / overlap / `RETRIEVAL_TOP_K`
 - Chroma persist path
 

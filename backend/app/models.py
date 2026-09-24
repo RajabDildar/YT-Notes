@@ -17,5 +17,4 @@ class ChatResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
-    groq_configured: bool
-    hf_configured: bool
+    google_configured: bool

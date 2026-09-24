@@ -22,15 +22,14 @@ app.add_middleware(
 def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
-        groq_configured=bool(settings.groq_api_key),
-        hf_configured=bool(settings.huggingface_api_key),
+        google_configured=bool(settings.google_api_key),
     )
 
 
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(req: ChatRequest) -> ChatResponse:
 
-    if not settings.groq_api_key or not settings.huggingface_api_key:
+    if not settings.google_api_key:
         raise HTTPException(
             status_code=503,
             detail="The answer service is temporarily unavailable.",

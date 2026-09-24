@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from uuid import uuid4
 
-from groq import Groq
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 from app.config import settings
 
@@ -51,11 +51,31 @@ class SessionStore:
         self._sessions[new_id] = mem
         return mem
 
+    @staticmethod
+    def _extract_text(response: object) -> str:
+        if hasattr(response, "text"):
+            text = getattr(response, "text")
+            if isinstance(text, str) and text.strip():
+                return text.strip()
+        content = getattr(response, "content", None)
+        if isinstance(content, str):
+            return content.strip()
+        if isinstance(content, list):
+            parts: list[str] = []
+            for block in content:
+                if isinstance(block, dict):
+                    txt = block.get("text") or block.get("content")
+                    if isinstance(txt, str):
+                        parts.append(txt)
+                elif isinstance(block, str):
+                    parts.append(block)
+            return "".join(parts).strip()
+        return str(content).strip() if content is not None else ""
+
     def update_summary(self, memory: SessionMemory, user_msg: str, assistant_msg: str) -> None:
-        if not settings.groq_api_key:
+        if not settings.google_api_key:
             return
 
-        client = Groq(api_key=settings.groq_api_key)
         prompt = f"""Compress this conversation into a short session summary (max 120 words).
 Keep facts and topics needed for follow-up questions.
 
@@ -69,13 +89,15 @@ Assistant: {assistant_msg}
 Return only the updated summary."""
 
         try:
-            completion = client.chat.completions.create(
-                model=settings.groq_chat_model_fallback,
-                messages=[{"role": "user", "content": prompt}],
+            llm = ChatGoogleGenerativeAI(
+                model=settings.google_chat_model_fallback,
+                google_api_key=settings.google_api_key,
                 temperature=0.2,
                 max_tokens=256,
+                max_retries=1,
             )
-            memory.summary = (completion.choices[0].message.content or "").strip()
+            response = llm.invoke([("user", prompt)])
+            memory.summary = self._extract_text(response)
         except Exception:
             memory.summary = f"{memory.summary}\nUser asked: {user_msg[:200]}".strip()[:500]
 
